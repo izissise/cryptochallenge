@@ -30,3 +30,18 @@ func CharacterFrequency(binarystring string) int {
 	}
 	return frequencyScore
 }
+
+func MapFrequency(str string) map[byte]float32 {
+  freq := make(map[byte]float32)
+  
+  for i := 0; i < 26; i++ {
+   pos := byte(i) + 'a';
+   for j := 0; j < len(str); j++ {
+     if (str[j] == byte(i)) {
+       freq[pos] += 1.0
+     }
+   }
+   freq[pos] /= float32(len(str));
+  }
+  return freq;
+}

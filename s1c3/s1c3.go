@@ -1,10 +1,10 @@
 package main
 
 import (
-	ch "characterFrequency"
+// 	ch "characterFrequency"
 	"fmt"
 	hex "hexConversion"
-	"sort"
+// 	"sort"
 )
 
 func main() {
@@ -19,21 +19,22 @@ func main() {
 			tmp += string(key ^ cyph[i])
 		}
 		allStrings[j] = tmp
+		fmt.Println(j, " -> ", tmp)
 	}
 
-	freqMap := make(map[int]string)
-	for _, s := range allStrings {
-		perc := ch.CharacterFrequency(s)
-		freqMap[perc] = s
-	}
-
-	var keys []int
-	for k := range freqMap {
-		keys = append(keys, k)
-	}
-	sort.Ints(keys)
-
-	for _, k := range keys {
-		fmt.Println(k, " -> ", freqMap[k])
-	}
+// 	freqMap := make(map[int]string)
+// 	for _, s := range allStrings {
+// 		perc := ch.CharacterFrequency(s)
+// 		freqMap[perc] = s
+// 	}
+//
+// 	var keys []int
+// 	for k := range freqMap {
+// 		keys = append(keys, k)
+// 	}
+// 	sort.Ints(keys)
+//
+// 	for _, k := range keys {
+// 		fmt.Println(k, " -> ", freqMap[k])
+// 	}
 }

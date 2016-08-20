@@ -1,12 +1,12 @@
 package main
 
+import "github.com/bradfitz/slice"
 import (
 	ch "characterFrequency"
 	"fmt"
 	hex "hexConversion"
-	"io/ioutil"
-	"sort"
-	"strconv"
+    "bufio"
+    "os"
 )
 
 func check(e error) {
@@ -15,54 +15,96 @@ func check(e error) {
 	}
 }
 
+type cyphInfos struct {
+    xorKey int
+    chFrequency int
+    data string
+}
+
+// readLines reads a whole file into memory
+// and returns a slice of its lines.
+func readLines(path string) ([]string, error) {
+    file, err := os.Open(path)
+    if err != nil {
+        return nil, err
+    }
+    defer file.Close()
+
+    var lines []string
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+        lines = append(lines, scanner.Text())
+    }
+    return lines, scanner.Err()
+}
+
+func printCyphInfos(info cyphInfos) {
+    fmt.Printf("Freq: %d Key: %d Data: %s\n", info.chFrequency, info.xorKey, info.data)
+}
+
 func main() {
-	dat, err := ioutil.ReadFile("./4.txt")
+    finish := make(chan struct{})
+    rawDataIn := make(chan []byte, 10)
+    unxoredDataIn := make(chan cyphInfos, 10)
+    freqDataIn := make(chan cyphInfos, 10)
+
+    go func(in chan []byte) {
+        var key byte
+
+        for d := range in {
+            for j := 0; j < 255; j++ {
+            key = byte(j)
+            var tmp string
+                for i := 0; i < len(d); i++ {
+                    tmp += string(key ^ d[i])
+                }
+                var data cyphInfos
+                data.xorKey = j
+                data.data = tmp
+                unxoredDataIn <- data
+            }
+        }
+        close(unxoredDataIn)
+        finish <- struct{}{} // Signal main that we are done
+    }(rawDataIn)
+
+    go func(in chan cyphInfos) {
+        for s := range in {
+            s.chFrequency = ch.CharacterFrequency(s.data)
+            freqDataIn <- s
+        }
+        close(freqDataIn)
+        finish <- struct{}{} // Signal main that we are done
+    }(unxoredDataIn)
+
+    go func(in chan cyphInfos) {
+        allInfo := make([]cyphInfos, 2)
+        for data := range in {
+//             if data.chFrequency > 90 {
+//                 printCyphInfos(data)
+//             }
+            allInfo = append(allInfo, data)
+        }
+
+        slice.Sort(allInfo[:], func(i, j int) bool {
+            return allInfo[i].chFrequency < allInfo[j].chFrequency
+        })
+
+        for i := 0; i < 20; i++ {
+            printCyphInfos(allInfo[i])
+        }
+
+        finish <- struct{}{} // Signal main that we are done
+    }(freqDataIn)
+
+    dat, err := readLines("./4.txt")
 	check(err)
-	cyph := hex.HexASCIIStringToBytes(string(dat))
+    for _, l := range dat {
+      rawDataIn <- hex.HexASCIIStringToBytes(l)
+    }
+    close(rawDataIn)
 
-	var key byte
-	allStrings := make([]string, 255)
-
-	for j := 0; j < 255; j++ {
-		key = byte(j)
-		var tmp string
-		for i := 0; i < len(cyph); i++ {
-			tmp += string(key ^ cyph[i])
-		}
-		allStrings[j] = tmp
-	}
-
-	var subString []string
-	for _, s := range allStrings {
-		print := true
-		var tmp string
-		for i := 0; i < len(s); i++ {
-			if !(strconv.IsPrint(int32(s[i]))) {
-				if print {
-					subString = append(subString, tmp)
-				}
-				print = false
-				tmp = ""
-			} else {
-				print = true
-				tmp = tmp + string(s[i])
-			}
-		}
-	}
-
-	freqMap := make(map[int]string)
-	for _, s := range subString {
-		perc := ch.CharacterFrequency(s)
-		freqMap[perc] = s
-	}
-
-	var keys []int
-	for k := range freqMap {
-		keys = append(keys, k)
-	}
-	sort.Ints(keys)
-
-	for _, k := range keys {
-		fmt.Println(k, " -> ", freqMap[k])
-	}
+    for i := 0; i < 3; i++ { // Wait for goroutine to finish --'
+        <- finish
+    }
 }
