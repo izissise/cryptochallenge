@@ -12,8 +12,12 @@ func HammingDistance(x byte, y byte) int {
 	return dist
 }
 
-// HammingDistanceStr gie hamming distance between two strings
 func HammingDistanceStr(str1 string, str2 string) int {
+    return HammingDistanceByte([]byte(str1), []byte(str2))
+}
+
+// HammingDistanceStr gie hamming distance between two strings
+func HammingDistanceByte(str1 []byte, str2 []byte) int {
 	res := 0
 	mlen := 0
 	if len(str1) > len(str2) {
@@ -34,4 +38,22 @@ func HammingDistanceStr(str1 string, str2 string) int {
 		res += HammingDistance(b1, b2)
 	}
 	return res
+}
+
+func HammingDistanceBlockSize(data []byte, blockSize int, full bool) float32 {
+    nb := 4
+    if full {
+        nb = len(data) / blockSize
+    }
+    var total float32
+    var block1 []byte
+    var block2 []byte
+    block1 = data[0:blockSize]
+    for i := 0; i < nb; i++ {
+        block2 = block1
+        block1 = data[(blockSize * i):blockSize * (i + 1)]
+        total += float32(HammingDistanceByte(block1, block2)) / float32(blockSize)
+    }
+    hd := total / float32(nb - 1)
+    return hd
 }

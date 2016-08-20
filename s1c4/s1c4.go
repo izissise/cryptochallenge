@@ -46,15 +46,16 @@ func main() {
     finish := make(chan struct{})
     rawDataIn := make(chan []byte, 10)
     unxoredDataIn := make(chan cyphInfos, 10)
-    freqDataIn := make(chan cyphInfos, 10)
+    dat, err := readLines("./4.txt")
+    check(err)
 
     go func(in chan []byte) {
         var key byte
 
         for d := range in {
-            for j := 0; j < 255; j++ {
-            key = byte(j)
-            var tmp string
+            for j := 0; j < 256; j++ {
+                key = byte(j)
+                var tmp string
                 for i := 0; i < len(d); i++ {
                     tmp += string(key ^ d[i])
                 }
@@ -68,6 +69,26 @@ func main() {
         finish <- struct{}{} // Signal main that we are done
     }(rawDataIn)
 
+    go func() {
+        decrypt(unxoredDataIn)
+        finish <- struct{}{}
+    }()
+
+    for _, l := range dat {
+        rawDataIn <- hex.HexASCIIStringToBytes(l)
+    }
+    close(rawDataIn)
+
+    for i := 0; i < 2; i++ { // Wait for goroutine to finish --'
+        <- finish
+    }
+}
+
+func decrypt(dataIn chan cyphInfos) {
+    finish := make(chan struct{})
+    freqDataIn := make(chan cyphInfos, 10)
+
+
     go func(in chan cyphInfos) {
         for s := range in {
             s.chFrequency = ch.CharacterFrequency(s.data)
@@ -75,14 +96,11 @@ func main() {
         }
         close(freqDataIn)
         finish <- struct{}{} // Signal main that we are done
-    }(unxoredDataIn)
+    }(dataIn)
 
     go func(in chan cyphInfos) {
-        allInfo := make([]cyphInfos, 2)
+        allInfo := make([]cyphInfos, 0)
         for data := range in {
-//             if data.chFrequency > 90 {
-//                 printCyphInfos(data)
-//             }
             allInfo = append(allInfo, data)
         }
 
@@ -97,14 +115,7 @@ func main() {
         finish <- struct{}{} // Signal main that we are done
     }(freqDataIn)
 
-    dat, err := readLines("./4.txt")
-	check(err)
-    for _, l := range dat {
-      rawDataIn <- hex.HexASCIIStringToBytes(l)
-    }
-    close(rawDataIn)
-
-    for i := 0; i < 3; i++ { // Wait for goroutine to finish --'
+    for i := 0; i < 2; i++ { // Wait for goroutine to finish --'
         <- finish
     }
 }
