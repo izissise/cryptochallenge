@@ -91,3 +91,11 @@ func UnxorDataWithKey(data []byte, key []byte) []byte {
     return out
 }
 
+func XorBlock(block1 []byte, block2 []byte) []byte {
+  out := make([]byte, len(block1))
+  for i := 0; i < len(block1); i++ {
+    out[i] = block1[i] ^ block2[i]
+  }
+  return out
+}
+

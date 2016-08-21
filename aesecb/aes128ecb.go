@@ -1,7 +1,9 @@
 package aesecb
 
 import "crypto/cipher"
-import     "reflect"
+import "crypto/aes"
+import "reflect"
+import xor "xorUtils"
 
 type ecb struct {
     b         cipher.Block
@@ -85,6 +87,47 @@ func PadDataPKCS(data []byte, sizeMultiple int) []byte {
        data = append(data, padding)
    }
    return data
+}
+
+func Aes_Ecb_Cbc_Decrypt(data []byte, key []byte, ivs []byte) []byte {
+    blockSize := 16
+    b, err := aes.NewCipher(key)
+    if err != nil {
+        panic(err)
+    }
+    dec := NewECBDecrypter(b)
+
+    var final []byte
+    prev := ivs
+    for i := 0; i < (len(data) / blockSize); i++ {
+        block := data[blockSize * i : blockSize * (i + 1)]
+        out := make([]byte, len(block))
+        dec.CryptBlocks(out, block)
+        final = append(final, xor.XorBlock(prev, out)...)
+        prev = block
+    }
+    return final
+}
+
+func Aes_Ecb_Cbc_Encrypt(data []byte, key []byte, ivs []byte) []byte {
+    blockSize := 16
+    b, err := aes.NewCipher(key)
+    if err != nil {
+        panic(err)
+    }
+    enc := NewECBEncrypter(b)
+
+    var final []byte
+    prev := ivs
+    for i := 0; i < (len(data) / blockSize); i++ {
+        block := data[blockSize * i : blockSize * (i + 1)]
+        block = xor.XorBlock(block, prev)
+        out := make([]byte, len(block))
+        enc.CryptBlocks(out, block)
+        final = append(final, out...)
+        prev = out
+    }
+    return final
 }
 
 
