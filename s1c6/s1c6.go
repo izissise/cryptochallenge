@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
     "fmt"
     xor "xorUtils"
-    hex "hexConversion"
 )
 
 func check(e error) {
@@ -44,7 +43,7 @@ func singleKeyBlock(blocks chan []byte, blockSize int, meningfulBytes int) [][]b
     return keysBlock;
 }
 
-func findKey(data []byte, keySizeMin int, keySizeMax int) {
+func findKeys(data []byte, keySizeMin int, keySizeMax int, outKeys chan []byte) {
     finish := make(chan struct{})
     nbGoRoutine := 0
 
@@ -68,7 +67,7 @@ func findKey(data []byte, keySizeMin int, keySizeMax int) {
             for i := 0; i < len(keyBlocks); i++ {
                 finalKey[i] = xor.BestFreqKey(keyBlocks[i]) // Change algorithm here if not xor
             }
-            fmt.Printf("KeySize: %d Key: %s\n", kSize, string(finalKey[:]))
+            outKeys <- finalKey
             finish <- struct{}{}
         }()
         nbGoRoutine += 1
@@ -85,12 +84,45 @@ func findKey(data []byte, keySizeMin int, keySizeMax int) {
     }
 }
 
+func decrypt(data []byte) ([]byte, []byte) {
+    finish := make(chan struct{})
+    nbGoRoutine := 0
+
+    keys := make(chan []byte)
+
+    nbGoRoutine += 1
+    go func() {
+        findKeys(data, 3, 41, keys)
+        close(keys)
+        finish <- struct{}{}
+    }()
+
+    var final []byte
+    freq := 9999999
+    var finalKey []byte
+    for k := range keys {
+        decrypted := xor.UnxorDataWithKey(data, k)
+        tmpFreq := ch.CharacterFrequency(string(decrypted))
+        if tmpFreq < freq {
+            freq = tmpFreq
+            final = decrypted
+            finalKey = k
+        }
+    }
+
+    for i := 0; i < nbGoRoutine; i++ { // Wait for goroutine to finish --'
+        <- finish
+    }
+
+    return finalKey, final
+}
+
 func main() {
 	dat, err := ioutil.ReadFile("./6.txt")
 	check(err)
 	phrase := make([]byte, b64.StdEncoding.DecodedLen(len(dat)))
 	b64.StdEncoding.Decode(phrase, []byte(dat))
 
-    findKey(phrase, 3, 41)
-    fmt.Println(hex.SliceByteToHexASCII(xor.UnxorDataWithKey(phrase, []byte("tErmInAToRx: BRiNG The noIse"))))
+    key, data := decrypt(phrase)
+    fmt.Printf("Key: %s\n%s\n", string(key), string(data))
 }
