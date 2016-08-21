@@ -1,6 +1,7 @@
 package aesecb
 
 import "crypto/cipher"
+import     "reflect"
 
 type ecb struct {
     b         cipher.Block
@@ -57,3 +58,35 @@ func (x *ecbDecrypter) CryptBlocks(dst, src []byte) {
         dst = dst[x.blockSize:]
     }
 }
+
+func EcbOccurence(data []byte, blockSize int) int {
+    var block1 []byte
+    var block2 []byte
+    var k int
+    for i := 0; i < len(data) / blockSize; i++ {
+        block2 = data[(blockSize * i) : blockSize * (i + 1)]
+        for j := 1; j < (len(data) - (blockSize * i)) / blockSize; j++ {
+            block1 = data[(blockSize * (i + j)) : blockSize * (i + j + 1)]
+            if reflect.DeepEqual(block1, block2) {
+                k++
+            }
+        }
+    }
+    return k
+}
+
+func PadDataPKCS(data []byte, sizeMultiple int) []byte {
+   padding := byte(4)
+   toAdd := sizeMultiple - (len(data) % sizeMultiple)
+   if toAdd == sizeMultiple {
+       return data
+   }
+   for i := 0; i < toAdd; i++ {
+       data = append(data, padding)
+   }
+   return data
+}
+
+
+
+
